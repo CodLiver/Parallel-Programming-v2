@@ -52,13 +52,18 @@ int main(int argc, char *argv[])
 	iter = 0;
 	double difmax = 1000000.0;
 
-	while (difmax > tol) {
-		iter++;
+#pragma	omp parallel
+	{
+		while (difmax > tol) {
+
+		#pragma omp single
+		++iter;
+
+		//#pragma omp critical
 		difmax = 0.0;
 		// update temperature for next iteration
-		#pragma	omp parallel
-		{
-			#pragma omp for schedule(static)
+		
+			#pragma omp for simd schedule(static)
 			for (int i = 1; i <= m; i++) {
 				for (int j = 1; j <= n; j++) {
 					tnew[i][j] = (t[i - 1][j] + t[i + 1][j] + t[i][j - 1] + t[i][j + 1]) / 4.0;
@@ -79,6 +84,8 @@ int main(int argc, char *argv[])
 					t[i][j] = tnew[i][j];
 				}
 			}
+
+			//#pragma omp barrier
 
 		}
 
