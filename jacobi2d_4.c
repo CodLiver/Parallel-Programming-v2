@@ -27,21 +27,21 @@ int main(int argc, char *argv[])
 	// initialise temperature array
 	#pragma parallel
 	{
-		#pragma omp for simd collapse(2)
+		#pragma omp for  schedule(static)
 		for (int i = 0; i <= m + 1; i++) {
 			for (int j = 0; j <= n + 1; j++) {
 				t[i][j] = 30.0;
 			}
 		}
 
-		#pragma omp for simd 
+		#pragma omp for schedule(static)
 		// fix boundary conditions
 		for (int i = 1; i <= m; i++) {
 			t[i][0] = 10.0;//40.0;
 			t[i][n + 1] = 140.0;//90.0;
 		}
 
-		#pragma omp for simd
+		#pragma omp for schedule(static)
 		for (int j = 1; j <= n; j++) {
 			t[0][j] = 20.0;//30.0;
 			t[m + 1][j] = 100.0;//50.0;
@@ -50,18 +50,15 @@ int main(int argc, char *argv[])
 	}
 
 	iter = 0;
-	double difmax = 0.0;//1000000.0;
+	double difmax = 1000000.0;
 
-	#pragma omp parallel
-	{
-		do 
+	while (difmax > tol) {
+		iter++;
+		difmax = 0.0;
+		// update temperature for next iteration
+		#pragma	omp parallel
 		{
-			#pragma omp single
-			1 == 1;
-
-
-			difmax = 0.0;
-			#pragma omp for simd collapse(2)
+			#pragma omp for schedule(static)
 			for (int i = 1; i <= m; i++) {
 				for (int j = 1; j <= n; j++) {
 					tnew[i][j] = (t[i - 1][j] + t[i + 1][j] + t[i][j - 1] + t[i][j + 1]) / 4.0;
@@ -69,11 +66,12 @@ int main(int argc, char *argv[])
 			}
 
 			// work out maximum difference between old and new temperatures
-			#pragma omp for reduction(max:difmax)
+
+			//double priv_difmax = 0.0;
+			#pragma omp for reduction(max:difmax) schedule(static)
 			for (int i = 1; i <= m; i++) {
 				for (int j = 1; j <= n; j++) {
 					double diff = fabs(tnew[i][j] - t[i][j]);
-
 					if (diff > difmax) {
 						difmax = diff;
 					}
@@ -81,13 +79,8 @@ int main(int argc, char *argv[])
 					t[i][j] = tnew[i][j];
 				}
 			}
-			#pragma omp single
-			{
-				++iter;
-			}
 
-		} while (difmax > tol);
-
+		}
 
 	}
 
